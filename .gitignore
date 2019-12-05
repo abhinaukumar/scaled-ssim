@@ -1,0 +1,20 @@
+# Ignore tar files
+*.tar.gz
+
+# Ignore scratch directories
+python_scratch/
+matlab_scratch/
+
+# Ignore data, results and figures directories
+data/
+results/
+figures/
+
+# Ignore temp directory
+temp/
+
+# Ignore pycache
+__pycache__/
+
+# Ignore ssims directory
+ssims/
