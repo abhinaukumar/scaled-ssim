@@ -1,0 +1,153 @@
+import numpy as np 
+import cv2
+import os
+from os import system
+from skimage.metrics import structural_similarity as ssim_index
+from scipy.ndimage import gaussian_filter
+import time
+
+import argparse
+
+import matplotlib.pyplot as plt
+plt.ion()
+
+from scipy.stats import spearmanr, pearsonr
+
+parser = argparse.ArgumentParser(description='Code to test histogram matching')
+parser.add_argument('--data_path', help='Directory containing pristine videos', required=True)
+
+# Scales at which compression will be done
+scales = np.array([[256, 144], [426, 240], [640, 360], [720, 480], [960,540], [1280, 720]])
+n_scales = scales.shape[0]
+
+# QPs used while compressing at each scale
+qps = np.arange(1,52,5)
+n_qps = len(qps)
+
+# Directory containing all videos
+videos_dir = args.data_path
+file_list = os.listdir(videos_dir)
+file_list = [v for v in file_list if v[-3:] == 'mp4']
+n_files = len(file_list)
+
+# Video parameters
+width = 1920
+height = 1080
+
+# Data storing SSIM at compression scale
+comp_ssim_data = np.empty((n_files,n_scales,n_qps),dtype=object)
+# Data storing SSIM at rendering scale
+true_ssim_data = np.empty((n_files,n_scales,n_qps),dtype=object)
+# Data storing predicted SSIM at rendering scale
+pred_ssim_data = np.empty((n_files,n_scales,n_qps),dtype=object)
+
+start = time.time()
+for f in range(n_files):
+
+    for s in range(n_scales):
+            
+        # Downsample video to compression scale
+        system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] + \
+            " -filter:v scale=" + str(scales[s,0]) + "x" + str(scales[s,1]) + \
+            " -sws_flags lanczos" + \
+            " -y scaled_video.mp4")
+
+        print("Processed Reference Video " + str(f) + \
+            " at scale " + str(scales[s,0]) + "x" + str(scales[s,1]))
+
+        for q in range(n_qps):
+
+            # Compress scaled video
+            system("ffmpeg -hide_banner -loglevel panic -i scaled_video.mp4" + \
+            " -c:v libx264 -qp " + str(qps[q]) + \
+            " -y comp_video.mp4")
+
+            # Resize compressed video back to original scale
+            system("ffmpeg -hide_banner -loglevel panic -i comp_video.mp4" + \
+                " -filter:v scale=" + str(width) + "x" + str(height) + \
+                " -sws_flags lanczos" + \
+                " -y upscaled_comp_video.mp4")
+
+            v1 = cv2.VideoCapture(videos_dir + file_list[f])
+            v2 = cv2.VideoCapture("scaled_video.mp4")
+            v3 = cv2.VideoCapture("comp_video.mp4")
+            v4 = cv2.VideoCapture("upscaled_comp_video.mp4")
+
+            k = 0
+
+            true_ssims = []
+            comp_ssims = []
+            pred_ssims = []
+
+            # Calculate and predict SSIM before and after compression at both scales
+            while(v1.isOpened() and v2.isOpened() and v3.isOpened() and v4.isOpened()):
+                
+                ret1, RGB_original = v1.read()
+                ret2, RGB_scaled = v2.read()
+                ret3, RGB_comp = v3.read()
+                ret4, RGB_upcomp = v4.read()
+                
+                if ret1 and ret2 and ret3 and ret4:
+
+                    Y_original = cv2.cvtColor(RGB_original,cv2.COLOR_BGR2GRAY)
+                    Y_scaled = cv2.cvtColor(RGB_scaled,cv2.COLOR_BGR2GRAY)
+                    Y_comp = cv2.cvtColor(RGB_comp,cv2.COLOR_BGR2GRAY)
+                    Y_upcomp = cv2.cvtColor(RGB_upcomp,cv2.COLOR_BGR2GRAY)
+                    
+                    [temp, ssim_map_comp] = ssim_index(Y_comp,Y_scaled,gaussian_weights=True,full=True)
+                    [temp, ssim_map_true] = ssim_index(Y_upcomp,Y_original,gaussian_weights=True,full=True)
+
+                    if k % args.interval == 0:
+                        ssim_map_ref = ssim_map_true
+                    
+                    ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
+
+                    true_ssims.append(np.mean(ssim_map_true))
+                    comp_ssims.append(np.mean(ssim_map_comp))
+                    pred_ssims.append(np.mean(ssim_map_trans))
+
+                    k += 1
+                else:
+                    break
+
+            comp_ssim_data[f,s,q] = np.array(comp_ssims)
+            true_ssim_data[f,s,q] = np.array(true_ssims)
+            pred_ssim_data[f,s,q] = np.array(pred_ssims)
+
+            print("Processed Video " + str(f) + \
+                " at scale " + str(scales[s,0]) + "x" + str(scales[s,1]) + \
+                " and QP " + str(qps[q]))
+            print("Time elapsed: " + str(time.time() - start) + " s")
+
+pcc = np.zeros((n_scales,n_qps))
+srocc = np.zeros((n_scales,n_qps))
+
+for s in range(n_scales):
+    for q in range(n_qps):
+        true_data = []
+        pred_data = []
+
+        for f in range(n_files):
+            true_data.append(true_ssim_data[f,s,q])
+            pred_data.append(pred_ssim_data[f,s,q])
+        
+        true_data = np.concatenate(true_data,axis=0)
+        pred_data = np.concatenate(pred_data,axis=0)
+
+        pcc[s,q] = pearsonr(true_data, pred_data)[0]
+        srocc[s,q] = spearmanr(true_data, pred_data)[0]
+
+true_data = []
+pred_data = []
+
+for s in range(n_scales):
+    for q in range(n_qps):
+        for f in range(n_files):
+            true_data.append(true_ssim_data[f,s,q])
+            pred_data.append(pred_ssim_data[f,s,q])
+
+true_data = np.concatenate(true_data,axis=0)
+pred_data = np.concatenate(pred_data,axis=0)
+
+total_pcc = pearsonr(true_data, pred_data)[0]
+total_srocc = spearmanr(true_data, pred_data)[0]
