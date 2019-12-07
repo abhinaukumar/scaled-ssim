@@ -22,5 +22,6 @@ ssims/
 # Ignore backups
 *.bak
 
-# Ignore job logs
+# Ignore jobs and logs
+*.vidjob
 logs/
