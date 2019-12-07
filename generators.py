@@ -19,9 +19,11 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
 
     if n_feats == 2:
         f = loadmat(path)
-        ref_data = f['ref_data']
-        comp_data = f['comp_data']
-        
+
+        scale_data = np.concatenate(f['scale_data'].squeeze(),0)
+        comp_data = np.concatenate(f['comp_data'].squeeze(),0)
+        true_data = np.concatenate(f['true_data'].squeeze(),0)
+
         n_frames = comp_data.shape[0]
         n_scales = comp_data.shape[1]
         n_qps = comp_data.shape[2]
@@ -31,8 +33,9 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
             if shuffle is None:
                 shuffle = True
 
-            selected_ref_data = np.tile(np.expand_dims(ref_data[:n_train,:],-1),[1,1,n_qps]).flatten()
-            selected_comp_data = np.reshape(comp_data[:n_train,:,:,:],[n_train*n_scales*n_qps,2])
+            selected_scale_data = np.tile(np.expand_dims(scale_data[:n_train,:],-1),[1,1,n_qps]).flatten()
+            selected_comp_data = comp_data[:n_train,:,:].flatten()
+            selected_true_data = true_data[:n_train,:,:].flatten()
             numel = n_train*n_scales*n_qps
 
             """ prod_preds = (comp_data[:,:,:,0]*np.tile(np.expand_dims(ref_data,-1),[1,1,11])).flatten() """
@@ -42,13 +45,15 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
             if shuffle is None:
                 shuffle = False
 
-            selected_ref_data = np.tile(np.expand_dims(ref_data[n_train:,:],-1),[1,1,n_qps]).flatten()
-            selected_comp_data = np.reshape(comp_data[n_train:,:,:,:],[(n_frames - n_train)*n_scales*n_qps,2])
+            selected_scale_data = np.tile(np.expand_dims(scale_data[n_train:,:],-1),[1,1,n_qps]).flatten()
+            selected_comp_data = comp_data[n_train:,:,:].flatten()
+            selected_true_data = true_data[n_train:,:,:].flatten()
+
             numel = (n_frames - n_train)*n_scales*n_qps
 
-        feats = np.vstack([selected_ref_data,selected_comp_data[:,0]]).T
+        feats = np.vstack([selected_scale_data,selected_comp_data]).T
 
-        targets = selected_comp_data[:,1]
+        targets = selected_true_data
 
         while True:
             if shuffle:
@@ -64,12 +69,14 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
     # Two SSIMs and s and q
     if n_feats == 4:
         f = loadmat(path)
-        ref_data = f['ref_data']
-        comp_data = f['comp_data']
+
+        scale_data = np.concatenate(f['scale_data'],0)
+        comp_data = np.concatenate(f['comp_data'],0)
+        true_data = np.concatenate(f['true_data'],0)
 
         n_frames = comp_data.shape[0]
-        n_scales = 6
-        n_qps = 11
+        n_scales = comp_data.shape[1]
+        n_qps = comp_data.shape[2]
 
         scales = np.array([144, 240, 360, 480, 540, 720])
         qps = np.arange(1, 52, 5)
@@ -79,8 +86,10 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
             if shuffle is None:
                 shuffle = True
 
-            selected_ref_data = np.tile(np.expand_dims(ref_data[:n_train,:],-1),[1,1,n_qps])
-            selected_comp_data = comp_data[:n_train,:,:,:]
+            selected_scale_data = np.tile(np.expand_dims(scale_data[:n_train,:],-1),[1,1,n_qps]).flatten()
+            selected_comp_data = comp_data[:n_train,:,:].flatten()
+            selected_true_data = true_data[:n_train,:,:].flatten()
+
             numel = n_train*n_scales*n_qps
             n_frames_used = n_train
 
@@ -89,8 +98,10 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
             if shuffle is None:
                 shuffle = False
 
-            selected_ref_data = np.tile(np.expand_dims(ref_data[n_train:,:],-1),[1,1,n_qps])
-            selected_comp_data = comp_data[n_train:,:,:,:]
+            selected_scale_data = np.tile(np.expand_dims(scale_data[n_train:,:],-1),[1,1,n_qps])
+            selected_comp_data = comp_data[n_train:,:,:]
+            selected_true_data = true_data[n_train:,:,:]
+
             numel = (n_frames - n_train)*n_scales*n_qps
             n_frames_used = n_frames - n_train
 
@@ -105,11 +116,11 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
 
             for i in range(int(numel/batch_size)):
 
-                feats = np.vstack([selected_ref_data[f_inds[i*batch_size:(i+1)*batch_size], s_inds[i*batch_size:(i+1)*batch_size], q_inds[i*batch_size:(i+1)*batch_size]], \
-                                    selected_comp_data[f_inds[i*batch_size:(i+1)*batch_size], s_inds[i*batch_size:(i+1)*batch_size], q_inds[i*batch_size:(i+1)*batch_size],0], \
+                feats = np.vstack([selected_scale_data[f_inds[i*batch_size:(i+1)*batch_size], s_inds[i*batch_size:(i+1)*batch_size], q_inds[i*batch_size:(i+1)*batch_size]], \
+                                    selected_comp_data[f_inds[i*batch_size:(i+1)*batch_size], s_inds[i*batch_size:(i+1)*batch_size], q_inds[i*batch_size:(i+1)*batch_size]], \
                                     1080/(scales[s_inds[i*batch_size:(i+1)*batch_size]]), \
                                     51/(qps[q_inds[i*batch_size:(i+1)*batch_size]])]).T
-                targets = selected_comp_data[f_inds[i*batch_size:(i+1)*batch_size], s_inds[i*batch_size:(i+1)*batch_size], q_inds[i*batch_size:(i+1)*batch_size],1]
+                targets = selected_true_data[f_inds[i*batch_size:(i+1)*batch_size], s_inds[i*batch_size:(i+1)*batch_size], q_inds[i*batch_size:(i+1)*batch_size]]
                 x = torch.from_numpy(feats).float().cuda()
                 y = torch.from_numpy(targets).unsqueeze(1).float().cuda()
                 yield (x,y)
@@ -155,20 +166,24 @@ def LogSSIMDataGen(n_train, batch_size, mode = 'train'):
     n_qps = comp_data.shape[2]
 
     if mode == 'train':
-        selected_ref_data = np.tile(np.expand_dims(ref_data[:n_train,:],-1),[1,1,n_qps]).flatten()
-        selected_comp_data = np.reshape(comp_data[:n_train,:,:,:],[n_train*n_scales*n_qps,2])
+        selected_scale_data = np.tile(np.expand_dims(scale_data[:n_train,:],-1),[1,1,n_qps]).flatten()
+        selected_comp_data = np.reshape(comp_data[:n_train,:,:]).flatten()
+        selected_true_data = np.reshape(true_data[:n_train,:,:]).flatten()
+
         numel = n_train*n_scales*n_qps
 
         """ prod_preds = (comp_data[:,:,:,0]*np.tile(np.expand_dims(ref_data,-1),[1,1,11])).flatten() """
 
     elif mode == 'test':
-        selected_ref_data = np.tile(np.expand_dims(ref_data[n_train:,:],-1),[1,1,n_qps]).flatten()
-        selected_comp_data = np.reshape(comp_data[n_train:,:,:,:],[(n_frames - n_train)*n_scales*n_qps,2])
+        selected_scale_data = np.tile(np.expand_dims(scale_data[n_train:,:],-1),[1,1,n_qps]).flatten()
+        selected_comp_data = np.reshape(comp_data[n_train:,:,:]).flatten()
+        selected_true_data = np.reshape(true_data[n_train:,:,:]).flatten()
+
         numel = (n_frames - n_train)*n_scales*n_qps
 
-    feats = np.vstack([selected_ref_data,selected_comp_data[:,0]]).T
+    feats = np.vstack([selected_scale_data,selected_comp_data]).T
 
-    targets = selected_comp_data[:,1]
+    targets = selected_true_data
 
     while True:
         inds = np.random.permutation(numel)
