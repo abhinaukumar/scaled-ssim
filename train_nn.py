@@ -6,12 +6,11 @@ from torch import nn
 import models
 
 from scipy.io import loadmat
-
 from scipy.stats import spearmanr, pearsonr
 
 import numpy as np 
 
-parser = argparse.ArgumentParser(description='Code to train models')
+parser = argparse.ArgumentParser(description='Code to train NN models')
 parser.add_argument("--mode", help = "Analysis mode - analyze performance by scale - qp or training set size", required = True)
 parser.add_argument("--train_size", help = "Number of frames to use for training", type = int, default = None)
 parser.add_argument("--model", help = "Model to use for training", default = 'FCNet')
@@ -26,7 +25,6 @@ assert args.n_feats in [2, 4], "Invalid number of features"
 assert args.train_size is not None and args.train_size < args.n_frames, "Size of training set must be smaller than the total number of frames in the dataset"
 assert args.model in models.model_class, "Invalid choice of model"
 assert args.mode in ['analyze_training_size', 'analyze_scale_qp'], "Invalid choice of analysis"
-#assert args.train_size in n_trains or args.mode != 'analyze_scale_qp', "Invalid choice of size of training dataset size"
 assert args.train_size is not None or args.mode == 'analyze_training_size', "Must set training size to analyze scale - QP"
 
 n_feats = args.n_feats
@@ -147,11 +145,16 @@ elif args.mode == 'analyze_scale_qp':
             train_true_data = true_data[:n_train,s,q]
             test_true_data = true_data[n_train:,s,q]
 
-            train_feats = np.vstack([train_scale_data,train_comp_data]).T#,1080/(scales[s]*np.ones((n_train,))),51/(qps[q]*np.ones((n_train,)))]).T
-            train_targets = train_true_data
-            test_feats = np.vstack([test_scale_data,test_comp_data]).T#,1080/(scales[s]*np.ones((n_frames - n_train,))),51/(qps[q]*np.ones((n_frames - n_train,)))]).T
+            if args.n_feats == 2:
+                train_feats = np.vstack([train_scale_data, train_comp_data]).T
+                test_feats = np.vstack([test_scale_data, test_comp_data]).T
+            else:
+                train_feats = np.vstack([train_scale_data, train_comp_data,1080/(scales[s]*np.ones((n_train,))),51/(qps[q]*np.ones((n_train,)))]).T
+                test_feats = np.vstack([test_scale_data, test_comp_data,1080/(scales[s]*np.ones((n_frames - n_train,))),51/(qps[q]*np.ones((n_frames - n_train,)))]).T               
+
+            train_targets = train_true_data    
             test_targets = test_true_data
-            
+
             train_preds = net.forward(torch.from_numpy(train_feats).float().cuda()).cpu().detach().numpy().squeeze()
             test_preds = net.forward(torch.from_numpy(test_feats).float().cuda()).cpu().detach().numpy().squeeze()
 
@@ -159,5 +162,3 @@ elif args.mode == 'analyze_scale_qp':
             all_train_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
             all_test_pcc[s,q] = pearsonr(test_preds,test_targets)[0]
             all_test_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
-
-#TODO: Generalize testing for scale-qp analysis
