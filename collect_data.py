@@ -60,3 +60,5 @@ for f in range(n_files):
             temp_qp.append(df.values[:,3].astype('float32'))
         temp_scale.append(temp_qp)
     true_data[f] = np.array(temp_scale).transpose((2,0,1)) # Order as n_frames, n_scales, n_qps
+
+savemat('data/ssim_data.mat', {'scale_data': scale_data, 'comp_data':comp_data, 'true_data':true_data})
