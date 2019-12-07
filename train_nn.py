@@ -24,13 +24,12 @@ parser.add_argument("--n_feats", help = "Number of features to supply to model",
 parser.add_argument("--data_path", help = "Path to dataset", required = True)
 args = parser.parse_args()
 
-n_trains = np.arange(100,1400,100)
-
 assert args.n_feats in [2, 4], "Invalid number of features"
+
 assert args.train_size is not None and args.train_size < args.n_frames, "Size of training set must be smaller than the total number of frames in the dataset"
 assert args.model in models.model_class, "Invalid choice of model"
 assert args.mode in ['analyze_training_size', 'analyze_scale_qp'], "Invalid choice of analysis"
-assert args.train_size in n_trains or args.mode != 'analyze_scale_qp', "Invalid choice of size of training dataset"
+#assert args.train_size in n_trains or args.mode != 'analyze_scale_qp', "Invalid choice of size of training dataset size"
 assert args.train_size is not None or args.mode == 'analyze_training_size', "Must set training size to analyze scale - QP"
 
 n_feats = args.n_feats
@@ -131,8 +130,9 @@ elif args.mode == 'analyze_scale_qp':
     print("Test SROCC: ", temp[0])
 
     f = loadmat(args.data_path)
-    ref_data = f['ref_data']
-    comp_data = f['comp_data']
+    scale_data = np.concatenate(f['scale_data'].squeeze(),0)
+    comp_data = np.concatenate(f['comp_data'].squeeze(),0)
+    true_data = np.concatenate(f['true_data'].squeeze(),0)
 
     all_train_pcc = np.zeros((n_scales,n_qps))
     all_test_pcc = np.zeros((n_scales,n_qps))
@@ -141,16 +141,23 @@ elif args.mode == 'analyze_scale_qp':
 
     for s in range(n_scales):
         for q in range(n_qps):
-            train_ref_data = ref_data[:n_train,s]
-            test_ref_data = ref_data[n_train:,s]
-            train_comp_data = comp_data[:n_train,s,q,:]
-            test_comp_data = comp_data[n_train:,s,q,:]
-            train_feats = np.vstack([train_ref_data,train_comp_data[:,0]]).T#,1080/(scales[s]*np.ones((n_train,))),51/(qps[q]*np.ones((n_train,)))]).T
-            train_targets = train_comp_data[:,1]
-            test_feats = np.vstack([test_ref_data,test_comp_data[:,0]]).T#,1080/(scales[s]*np.ones((n_frames - n_train,))),51/(qps[q]*np.ones((n_frames - n_train,)))]).T
-            test_targets = test_comp_data[:,1]
+            train_scale_data = scale_data[:n_train,s]
+            test_scale_data = scale_data[n_train:,s]
+
+            train_comp_data = comp_data[:n_train,s,q]
+            test_comp_data = comp_data[n_train:,s,q]
+
+            train_true_data = true_data[:n_train,s,q]
+            test_true_data = true_data[n_train:,s,q]
+
+            train_feats = np.vstack([train_scale_data,train_comp_data]).T#,1080/(scales[s]*np.ones((n_train,))),51/(qps[q]*np.ones((n_train,)))]).T
+            train_targets = train_true_data
+            test_feats = np.vstack([test_scale_data,test_comp_data]).T#,1080/(scales[s]*np.ones((n_frames - n_train,))),51/(qps[q]*np.ones((n_frames - n_train,)))]).T
+            test_targets = test_true_data
+            
             train_preds = net.forward(torch.from_numpy(train_feats).float().cuda()).cpu().detach().numpy().squeeze()
             test_preds = net.forward(torch.from_numpy(test_feats).float().cuda()).cpu().detach().numpy().squeeze()
+
             all_train_pcc[s,q] = pearsonr(train_preds,train_targets)[0]
             all_train_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
             all_test_pcc[s,q] = pearsonr(test_preds,test_targets)[0]
