@@ -70,9 +70,9 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
     if n_feats == 4:
         f = loadmat(path)
 
-        scale_data = np.concatenate(f['scale_data'],0)
-        comp_data = np.concatenate(f['comp_data'],0)
-        true_data = np.concatenate(f['true_data'],0)
+        scale_data = np.concatenate(f['scale_data'].squeeze(),0)
+        comp_data = np.concatenate(f['comp_data'].squeeze(),0)
+        true_data = np.concatenate(f['true_data'].squeeze(),0)
 
         n_frames = comp_data.shape[0]
         n_scales = comp_data.shape[1]
@@ -86,9 +86,9 @@ def SSIMDataGen(n_train, n_feats, batch_size, path, mode = 'train', shuffle = No
             if shuffle is None:
                 shuffle = True
 
-            selected_scale_data = np.tile(np.expand_dims(scale_data[:n_train,:],-1),[1,1,n_qps]).flatten()
-            selected_comp_data = comp_data[:n_train,:,:].flatten()
-            selected_true_data = true_data[:n_train,:,:].flatten()
+            selected_scale_data = np.tile(np.expand_dims(scale_data[:n_train,:],-1),[1,1,n_qps])
+            selected_comp_data = comp_data[:n_train,:,:]
+            selected_true_data = true_data[:n_train,:,:]
 
             numel = n_train*n_scales*n_qps
             n_frames_used = n_train
