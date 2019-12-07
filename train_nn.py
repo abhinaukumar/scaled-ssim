@@ -5,14 +5,11 @@ from torch import nn
 
 import models
 
-import h5py
 from scipy.io import loadmat
 
 from scipy.stats import spearmanr, pearsonr
 
 import numpy as np 
-import matplotlib.pyplot as plt
-plt.ion()
 
 parser = argparse.ArgumentParser(description='Code to train models')
 parser.add_argument("--mode", help = "Analysis mode - analyze performance by scale - qp or training set size", required = True)
