@@ -5,7 +5,7 @@ from torch import nn
 
 import models
 
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 from scipy.stats import spearmanr, pearsonr
 
 import numpy as np 
@@ -22,7 +22,7 @@ args = parser.parse_args()
 
 assert args.n_feats in [2, 4], "Invalid number of features"
 
-assert args.train_size is not None and args.train_size < args.n_frames, "Size of training set must be smaller than the total number of frames in the dataset"
+assert args.train_size is None or args.train_size < args.n_frames, "Size of training set must be smaller than the total number of frames in the dataset"
 assert args.model in models.model_class, "Invalid choice of model"
 assert args.mode in ['analyze_training_size', 'analyze_scale_qp'], "Invalid choice of analysis"
 assert args.train_size is not None or args.mode == 'analyze_training_size', "Must set training size to analyze scale - QP"
@@ -33,6 +33,7 @@ n_frames = args.n_frames
 n_scales = 6
 n_qps = 11
 batch_size = 10*n_scales*n_qps
+n_trains = np.arange(2500,26000,2500)
 
 scales = np.array([144, 240, 360, 480, 540, 720])
 qps = np.arange(1, 52, 5)
@@ -84,6 +85,8 @@ if args.mode == 'analyze_training_size':
         test_srocc[i] = temp[0]
 
         models.append(net)
+
+    savemat('results/nn_' + str(args.n_feats) + '_training_size_analysis.mat',{'nn_' + str(args.n_feats) + '_train_pcc':train_pcc, 'nn_' + str(args.n_feats) + '_test_pcc': test_pcc, 'nn_' + str(args.n_feats) + '_train_srocc': train_srocc, 'nn_' + str(args.n_feats) + '_test_srocc': test_srocc})
 
 elif args.mode == 'analyze_scale_qp':
 
@@ -162,3 +165,4 @@ elif args.mode == 'analyze_scale_qp':
             all_train_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
             all_test_pcc[s,q] = pearsonr(test_preds,test_targets)[0]
             all_test_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
+    savemat('results/nn_' + str(args.n_feats) + '_scale_qp_analysis.mat', {'nn_' + str(args.n_feats) + '_train_pcc': all_train_pcc, 'nn_' + str(args.n_feats) + '_test_pcc': all_test_pcc, 'nn_' + str(args.n_feats) + '_train_srocc': all_train_srocc, 'nn_' + str(args.n_feats) + '_test_srocc': all_test_srocc})

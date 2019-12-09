@@ -1,8 +1,9 @@
 import argparse
 
 from sklearn import svm
+from sklearn.preprocessing import StandardScaler
 
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 from scipy.stats import spearmanr, pearsonr
 
 import numpy as np
@@ -14,13 +15,14 @@ parser.add_argument("--model", help = "Model to use for training", default = 'li
 parser.add_argument("--n_frames", help = "Total number of frames in the dataset", type = int, required = True)
 parser.add_argument("--n_feats", help = "Number of features to supply to model", type = int, default = 2)
 parser.add_argument("--data_path", help = "Path to dataset", required = True)
+parser.add_argument("--max_iter", help = "Maximum number of iterations to run SVM", type = int, default = 2000)
 args = parser.parse_args()
 
 models = ['linear','gaussian']
 
 assert args.n_feats in [2, 4], "Invalid number of features"
 
-assert args.train_size is not None and args.train_size < args.n_frames, "Size of training set must be smaller than the total number of frames in the dataset"
+assert args.train_size is None or args.train_size < args.n_frames, "Size of training set must be smaller than the total number of frames in the dataset"
 assert args.model in models, "Invalid choice of model"
 assert args.mode in ['analyze_training_size', 'analyze_scale_qp'], "Invalid choice of analysis"
 assert args.train_size is not None or args.mode == 'analyze_training_size', "Must set training size to analyze scale - QP"
@@ -35,9 +37,9 @@ scales = np.array([144, 240, 360, 480, 540, 720])
 qps = np.arange(1, 52, 5)
 
 if args.model == 'linear':
-    clf = svm.SVR(kernel = 'linear')
+    clf = svm.SVR(kernel = 'linear', verbose = True, max_iter = args.max_iter)
 else:
-    clf = svm.SVR(kernel = 'rbf')
+    clf = svm.SVR(kernel = 'rbf', verbose = True, max_iter = args.max_iter)
 
 f = loadmat(args.data_path)
 scale_data = np.concatenate(f['scale_data'].squeeze(),0)
@@ -69,6 +71,11 @@ if args.mode == 'analyze_training_size':
         train_targets = true_data[:n_trains[i],:,:].flatten()
         test_targets = true_data[n_trains[i]:,:,:].flatten()
 
+        scaler = StandardScaler()
+        scaler.fit(train_feats)
+        train_feats = scaler.transform(train_feats)
+        test_feats = scaler.transform(test_feats)
+
         clf.fit(train_feats, train_targets)
         train_preds = clf.predict(train_feats)
         test_preds = clf.predict(test_feats)
@@ -81,6 +88,8 @@ if args.mode == 'analyze_training_size':
         train_srocc[i] = temp[0]
         temp = spearmanr(test_preds.squeeze(),test_targets.squeeze())
         test_srocc[i] = temp[0]
+
+    savemat('results/' + args.model+'_svm_' + str(args.n_feats) +'_train_size_analysis.mat',{args.model+'_svm_' + str(args.n_feats) + '_train_pcc':train_pcc, args.model+'_svm_' + str(args.n_feats) + '_test_pcc':test_pcc,args.model+'_svm_' + str(args.n_feats) + '_train_srocc':train_srocc, args.model+'_svm_' + str(args.n_feats) + '_test_srocc':test_srocc})
 
 elif args.mode == 'analyze_scale_qp':
 
@@ -95,6 +104,11 @@ elif args.mode == 'analyze_scale_qp':
 
     train_targets = true_data[:n_train,:,:].flatten()
     test_targets = true_data[n_train:,:,:].flatten()
+
+    scaler = StandardScaler()
+    scaler.fit(train_feats)
+    train_feats = scaler.transform(train_feats)
+    test_feats = scaler.transform(test_feats)
 
     clf.fit(train_feats, train_targets)
     
@@ -121,7 +135,7 @@ elif args.mode == 'analyze_scale_qp':
     for s in range(n_scales):
         for q in range(n_qps):
 
-            print("Resolution:", scales[s,1], "QPS:", qps[q])
+            print("Resolution:", scales[s], "QPS:", qps[q])
             
             train_scale_data = scale_data[:n_train,s,q]
             test_scale_data = scale_data[n_train:,s,q]
@@ -149,3 +163,6 @@ elif args.mode == 'analyze_scale_qp':
             all_train_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
             all_test_pcc[s,q] = pearsonr(test_preds,test_targets)[0]
             all_test_srocc[s,q] = spearmanr(train_preds,train_targets)[0]
+
+    savemat('results/' + args.model+'_svm_' + str(args.n_feats) +'_scale_qp_analysis.mat',{args.model+'_svm_' + str(args.n_feats) + '_train_pcc':all_train_pcc, args.model+'_svm_' + str(args.n_feats) + '_test_pcc':all_test_pcc,args.model+'_svm_' + str(args.n_feats)+ '_train_srocc':all_train_srocc, args.model+'_svm_' + str(args.n_feats)+'_test_srocc': all_test_srocc})
+
