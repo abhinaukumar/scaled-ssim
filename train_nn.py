@@ -115,27 +115,27 @@ elif args.mode == 'analyze_scale_qp':
         test_preds[j*batch_size:(j+1)*batch_size] = net.forward(x).cpu().detach().numpy().squeeze()
         test_targets[j*batch_size:(j+1)*batch_size] = y.cpu().detach().numpy().squeeze()
 
-    temp = pearsonr(train_preds.squeeze(), train_targets.squeeze())
-    print("Train PCC: ", temp[0])
+    all_train_pcc = pearsonr(train_preds.squeeze(), train_targets.squeeze())[0]
+    print("Train PCC (NN" + str(args.n_feats) + "): ", all_train_pcc)
 
-    temp = pearsonr(test_preds.squeeze(), test_targets.squeeze())
-    print("Test PCC: ", temp[0])
+    all_test_pcc = pearsonr(test_preds.squeeze(), test_targets.squeeze())[0]
+    print("Test PCC (NN" + str(args.n_feats) + "): ", all_test_pcc)
 
-    temp = spearmanr(train_preds.squeeze(), train_targets.squeeze())
-    print("Train SROCC: ", temp[0])
+    all_train_srocc = spearmanr(train_preds.squeeze(), train_targets.squeeze())[0]
+    print("Train SROCC (NN" + str(args.n_feats) + "): ", all_train_srocc)
 
-    temp = spearmanr(test_preds.squeeze(), test_targets.squeeze())
-    print("Test SROCC: ", temp[0])
+    all_test_srocc = spearmanr(test_preds.squeeze(), test_targets.squeeze())[0]
+    print("Test SROCC (NN" + str(args.n_feats) + "): ", all_test_srocc)
 
     f = loadmat(args.data_path)
     scale_data = np.concatenate(f['scale_data'].squeeze(), 0)
     comp_data = np.concatenate(f['comp_data'].squeeze(), 0)
     true_data = np.concatenate(f['true_data'].squeeze(), 0)
 
-    all_train_pcc = np.zeros((n_scales, n_qps))
-    all_test_pcc = np.zeros((n_scales, n_qps))
-    all_train_srocc = np.zeros((n_scales, n_qps))
-    all_test_srocc = np.zeros((n_scales, n_qps))
+    train_pcc = np.zeros((n_scales, n_qps))
+    test_pcc = np.zeros((n_scales, n_qps))
+    train_srocc = np.zeros((n_scales, n_qps))
+    test_srocc = np.zeros((n_scales, n_qps))
 
     for s in range(n_scales):
         for q in range(n_qps):
@@ -161,10 +161,14 @@ elif args.mode == 'analyze_scale_qp':
             train_preds = net.forward(torch.from_numpy(train_feats).float().cuda()).cpu().detach().numpy().squeeze()
             test_preds = net.forward(torch.from_numpy(test_feats).float().cuda()).cpu().detach().numpy().squeeze()
 
-            all_train_pcc[s, q] = pearsonr(train_preds, train_targets)[0]
-            all_train_srocc[s, q] = spearmanr(train_preds, train_targets)[0]
-            all_test_pcc[s, q] = pearsonr(test_preds, test_targets)[0]
-            all_test_srocc[s, q] = spearmanr(train_preds, train_targets)[0]
-    savemat('results/nn_' + str(args.n_feats) + '_scale_qp_analysis.mat', {'nn_' + str(args.n_feats) + '_train_pcc': all_train_pcc, 'nn_' + str(args.n_feats) + '_test_pcc': all_test_pcc,
-            'nn_' + str(args.n_feats) + '_train_srocc': all_train_srocc, 'nn_' + str(args.n_feats) + '_test_srocc': all_test_srocc})
+            train_pcc[s, q] = pearsonr(train_preds, train_targets)[0]
+            train_srocc[s, q] = spearmanr(train_preds, train_targets)[0]
+            test_pcc[s, q] = pearsonr(test_preds, test_targets)[0]
+            test_srocc[s, q] = spearmanr(train_preds, train_targets)[0]
+
+    savemat('results/nn_' + str(args.n_feats) + '_scale_qp_analysis.mat',
+            {'nn_' + str(args.n_feats) + '_all_train_pcc': all_train_pcc, 'nn_' + str(args.n_feats) + '_all_test_pcc': all_test_pcc,
+             'nn_' + str(args.n_feats) + '_all_train_srocc': all_train_srocc, 'nn_' + str(args.n_feats) + '_all_test_srocc': all_test_srocc,
+             'nn_' + str(args.n_feats) + '_train_pcc': train_pcc, 'nn_' + str(args.n_feats) + '_test_pcc': test_pcc,
+             'nn_' + str(args.n_feats) + '_train_srocc': train_srocc, 'nn_' + str(args.n_feats) + '_test_srocc': test_srocc})
     pickle.dump(net, open('results/nn_' + str(args.n_feats) + '_model.pkl', 'wb'))

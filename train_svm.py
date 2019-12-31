@@ -122,56 +122,64 @@ elif args.mode == 'analyze_scale_qp':
     train_preds = clf.predict(train_feats)
     test_preds = clf.predict(test_feats)
 
-    temp = pearsonr(train_preds, train_targets)
-    print("Train PCC: ", temp[0])
+    all_train_pcc = pearsonr(train_preds, train_targets)[0]
+    print("Train PCC (" + args.model + str(args.n_feats) + "): ", all_train_pcc)
 
-    temp = pearsonr(test_preds, test_targets)
-    print("Test PCC: ", temp[0])
+    all_test_pcc = pearsonr(test_preds, test_targets)[0]
+    print("Test PCC (" + args.model + str(args.n_feats) + "): ", all_test_pcc)
 
-    temp = spearmanr(train_preds, train_targets)
-    print("Train SROCC: ", temp[0])
+    all_train_srocc = spearmanr(train_preds, train_targets)[0]
+    print("Train SROCC (" + args.model + str(args.n_feats) + "): ", all_train_srocc)
 
-    temp = spearmanr(test_preds, test_targets)
-    print("Test SROCC: ", temp[0])
+    all_test_srocc = spearmanr(test_preds, test_targets)[0]
+    print("Test SROCC (" + args.model + str(args.n_feats) + "): ", all_test_srocc)
 
-    all_train_pcc = np.zeros((n_scales, n_qps))
-    all_test_pcc = np.zeros((n_scales, n_qps))
-    all_train_srocc = np.zeros((n_scales, n_qps))
-    all_test_srocc = np.zeros((n_scales, n_qps))
+    train_preds = train_preds.reshape((n_train, n_scales, n_qps))
+    test_preds = test_preds.reshape((n_train, n_scales, n_qps))
+    train_targets = train_targets.reshape((n_frames - n_train, n_scales, n_qps))
+    test_targets = test_targets.reshape((n_frames - n_train, n_scales, n_qps))
+
+    train_pcc = np.zeros((n_scales, n_qps))
+    test_pcc = np.zeros((n_scales, n_qps))
+    train_srocc = np.zeros((n_scales, n_qps))
+    test_srocc = np.zeros((n_scales, n_qps))
 
     for s in range(n_scales):
         for q in range(n_qps):
 
             print("Resolution:", scales[s], "QPS:", qps[q])
 
-            train_scale_data = scale_data[:n_train, s, q]
-            test_scale_data = scale_data[n_train:, s, q]
+            # train_scale_data = scale_data[:n_train, s, q]
+            # test_scale_data = scale_data[n_train:, s, q]
 
-            train_comp_data = comp_data[:n_train, s, q]
-            test_comp_data = comp_data[n_train:, s, q]
+            # train_comp_data = comp_data[:n_train, s, q]
+            # test_comp_data = comp_data[n_train:, s, q]
 
-            train_true_data = true_data[:n_train, s, q]
-            test_true_data = true_data[n_train:, s, q]
+            # train_true_data = true_data[:n_train, s, q]
+            # test_true_data = true_data[n_train:, s, q]
 
-            if args.n_feats == 2:
-                train_feats = np.vstack([train_scale_data, train_comp_data]).T
-                test_feats = np.vstack([test_scale_data, test_comp_data]).T
-            else:
-                train_feats = np.vstack([train_scale_data, train_comp_data, 1080/(scales[s]*np.ones((n_train,))), 51/(qps[q]*np.ones((n_train,)))]).T
-                test_feats = np.vstack([test_scale_data, test_comp_data, 1080/(scales[s]*np.ones((n_frames - n_train,))), 51/(qps[q]*np.ones((n_frames - n_train,)))]).T
+            # if args.n_feats == 2:
+            #     train_feats = np.vstack([train_scale_data, train_comp_data]).T
+            #     test_feats = np.vstack([test_scale_data, test_comp_data]).T
+            # else:
+            #     train_feats = np.vstack([train_scale_data, train_comp_data, 1080/(scales[s]*np.ones((n_train,))), 51/(qps[q]*np.ones((n_train,)))]).T
+            #     test_feats = np.vstack([test_scale_data, test_comp_data, 1080/(scales[s]*np.ones((n_frames - n_train,))), 51/(qps[q]*np.ones((n_frames - n_train,)))]).T
 
-            train_targets = train_true_data
-            test_targets = test_true_data
+            # train_targets = train_true_data
+            # test_targets = test_true_data
 
-            train_preds = clf.predict(train_feats)
-            test_preds = clf.predict(test_feats)
+            # train_preds = clf.predict(train_feats)
+            # test_preds = clf.predict(test_feats)
 
-            all_train_pcc[s, q] = pearsonr(train_preds, train_targets)[0]
-            all_train_srocc[s, q] = spearmanr(train_preds, train_targets)[0]
-            all_test_pcc[s, q] = pearsonr(test_preds, test_targets)[0]
-            all_test_srocc[s, q] = spearmanr(train_preds, train_targets)[0]
+            train_pcc[s, q] = pearsonr(train_preds[:, s, q], train_targets[:, s, q])[0]
+            train_srocc[s, q] = spearmanr(train_preds[:, s, q], train_targets[:, s, q])[0]
+            test_pcc[s, q] = pearsonr(test_preds[:, s, q], test_targets[:, s, q])[0]
+            test_srocc[s, q] = spearmanr(train_preds[:, s, q], train_targets[:, s, q])[0]
 
-    savemat('results/' + args.model+'_svm_' + str(args.n_feats) + '_scale_qp_analysis.mat', {args.model+'_svm_' + str(args.n_feats) + '_train_pcc': all_train_pcc,
-            args.model+'_svm_' + str(args.n_feats) + '_test_pcc': all_test_pcc, args.model+'_svm_' + str(args.n_feats) + '_train_srocc': all_train_srocc,
-            args.model+'_svm_' + str(args.n_feats) + '_test_srocc': all_test_srocc})
+    savemat('results/' + args.model+'_svm_' + str(args.n_feats) + '_scale_qp_analysis.mat',
+            {args.model+'_svm_' + str(args.n_feats) + '_all_train_pcc': all_train_pcc, args.model+'_svm_' + str(args.n_feats) + '_all_test_pcc': all_test_pcc,
+            args.model+'_svm_' + str(args.n_feats) + '_all_train_srocc': all_train_srocc, args.model+'_svm_' + str(args.n_feats) + '_all_test_srocc': all_test_srocc,
+            args.model+'_svm_' + str(args.n_feats) + '_train_pcc': train_pcc, args.model+'_svm_' + str(args.n_feats) + '_test_pcc': test_pcc,
+            args.model+'_svm_' + str(args.n_feats) + '_train_srocc': train_srocc, args.model+'_svm_' + str(args.n_feats) + '_test_srocc': test_srocc})
+
     pickle.dump(clf, open('results/' + args.model+'_svm_' + str(args.n_feats) + '_model.pkl', 'wb'))
