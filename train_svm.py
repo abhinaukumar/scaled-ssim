@@ -174,4 +174,4 @@ elif args.mode == 'analyze_scale_qp':
     savemat('results/' + args.model+'_svm_' + str(args.n_feats) + '_scale_qp_analysis.mat', {args.model+'_svm_' + str(args.n_feats) + '_train_pcc': all_train_pcc,
             args.model+'_svm_' + str(args.n_feats) + '_test_pcc': all_test_pcc, args.model+'_svm_' + str(args.n_feats) + '_train_srocc': all_train_srocc,
             args.model+'_svm_' + str(args.n_feats) + '_test_srocc': all_test_srocc})
-    pickle.dump(clf, 'results/' + args.model+'_svm_' + str(args.n_feats) + '_model.pkl')
+    pickle.dump(clf, open('results/' + args.model+'_svm_' + str(args.n_feats) + '_model.pkl', 'wb'))
