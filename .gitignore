@@ -25,3 +25,6 @@ ssims/
 # Ignore jobs and logs
 *.vidjob
 logs/
+
+# Ignore vscode
+.vscode
