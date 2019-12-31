@@ -86,7 +86,7 @@ if args.mode == 'analyze_training_size':
 
         models.append(net)
 
-    savemat('results/nn_' + str(args.n_feats) + '_training_size_analysis.mat',{'nn_' + str(args.n_feats) + '_train_pcc':train_pcc, 'nn_' + str(args.n_feats) + '_test_pcc': test_pcc, 'nn_' + str(args.n_feats) + '_train_srocc': train_srocc, 'nn_' + str(args.n_feats) + '_test_srocc': test_srocc})
+    savemat('results/nn_' + str(args.n_feats) + '_train_size_analysis.mat',{'nn_' + str(args.n_feats) + '_train_pcc':train_pcc, 'nn_' + str(args.n_feats) + '_test_pcc': test_pcc, 'nn_' + str(args.n_feats) + '_train_srocc': train_srocc, 'nn_' + str(args.n_feats) + '_test_srocc': test_srocc})
 
 elif args.mode == 'analyze_scale_qp':
 
