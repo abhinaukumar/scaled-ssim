@@ -34,8 +34,8 @@ def match_histograms(source, template):
     template = template.ravel()
 
     # get histogram and bin ids for every value in source
-    s_counts, s_bins = np.histogram(source, bins=1000, density=True)
-    t_counts, t_bins = np.histogram(template, bins=1000, density=True)
+    s_counts, s_bins = np.histogram(source, bins=200, density=True)
+    t_counts, t_bins = np.histogram(template, bins=200, density=True)
 
     s_values = (s_bins[:-1] + s_bins[1:])/2
     t_values = (t_bins[:-1] + t_bins[1:])/2
@@ -62,7 +62,7 @@ parser.add_argument('--interval', help='Interval at which to sample the referenc
 args = parser.parse_args()
 
 # Scales at which compression will be done
-scales = np.array([[256, 144], [426, 240], [640, 360], [720, 480], [960, 540], [1280, 720]])
+scales = np.array([[1280, 720], [426, 240], [640, 360], [720, 480], [960, 540], [1280, 720]])
 n_scales = scales.shape[0]
 
 # QPs used while compressing at each scale
@@ -99,6 +99,7 @@ for f in range(n_files):
 
         print("Processed Reference Video " + str(f) +
               " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]))
+        print("Time elapsed: " + str(time.time() - start) + " s")
 
         for q in range(n_qps):
 
