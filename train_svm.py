@@ -135,8 +135,8 @@ elif args.mode == 'analyze_scale_qp':
     print("Test SROCC (" + args.model + str(args.n_feats) + "): ", all_test_srocc)
 
     train_preds = train_preds.reshape((n_train, n_scales, n_qps))
-    test_preds = test_preds.reshape((n_train, n_scales, n_qps))
-    train_targets = train_targets.reshape((n_frames - n_train, n_scales, n_qps))
+    test_preds = test_preds.reshape((n_frames - n_train, n_scales, n_qps))
+    train_targets = train_targets.reshape((n_train, n_scales, n_qps))
     test_targets = test_targets.reshape((n_frames - n_train, n_scales, n_qps))
 
     train_pcc = np.zeros((n_scales, n_qps))
@@ -147,7 +147,7 @@ elif args.mode == 'analyze_scale_qp':
     for s in range(n_scales):
         for q in range(n_qps):
 
-            print("Resolution:", scales[s], "QPS:", qps[q])
+            # print("Resolution:", scales[s], "QPS:", qps[q])
 
             # train_scale_data = scale_data[:n_train, s, q]
             # test_scale_data = scale_data[n_train:, s, q]
