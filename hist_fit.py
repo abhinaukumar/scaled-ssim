@@ -7,10 +7,8 @@ import time
 
 import argparse
 
+from scipy.io import savemat
 from scipy.stats import spearmanr, pearsonr
-
-import matplotlib.pyplot as plt
-plt.ion()
 
 
 def match_histograms(source, template):
@@ -60,7 +58,7 @@ def match_histograms(source, template):
 
 parser = argparse.ArgumentParser(description='Code to test histogram matching')
 parser.add_argument('--data_path', help='Directory containing pristine videos', required=True)
-
+parser.add_argument('--interval', help='Interval at which to sample the reference histogram', default=5)
 args = parser.parse_args()
 
 # Scales at which compression will be done
@@ -97,7 +95,7 @@ for f in range(n_files):
         system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
                " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
                " -sws_flags lanczos" +
-               " -y scaled_video.mp4")
+               " -y temp/hist_scaled_video.mp4")
 
         print("Processed Reference Video " + str(f) +
               " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]))
@@ -106,19 +104,19 @@ for f in range(n_files):
 
             # Compress scaled video
             system("ffmpeg -hide_banner -loglevel panic -i scaled_video.mp4" +
-                   " -c:v libx264 -qp " + str(qps[q]) +
-                   " -y comp_video.mp4")
+                   " -vcodec libx264 -crf " + str(qps[q]) +
+                   " -y temp/hist_comp_video.mp4")
 
             # Resize compressed video back to original scale
             system("ffmpeg -hide_banner -loglevel panic -i comp_video.mp4" +
                    " -filter:v scale=" + str(width) + "x" + str(height) +
                    " -sws_flags lanczos" +
-                   " -y upscaled_comp_video.mp4")
+                   " -y temp/hist_upscaled_comp_video.mp4")
 
             v1 = cv2.VideoCapture(videos_dir + file_list[f])
-            v2 = cv2.VideoCapture("scaled_video.mp4")
-            v3 = cv2.VideoCapture("comp_video.mp4")
-            v4 = cv2.VideoCapture("upscaled_comp_video.mp4")
+            v2 = cv2.VideoCapture("temp/hist_scaled_video.mp4")
+            v3 = cv2.VideoCapture("temp/hist_comp_video.mp4")
+            v4 = cv2.VideoCapture("temp/hist_upscaled_comp_video.mp4")
 
             k = 0
 
@@ -196,5 +194,7 @@ for s in range(n_scales):
 true_data = np.concatenate(true_data, axis=0)
 pred_data = np.concatenate(pred_data, axis=0)
 
-total_pcc = pearsonr(true_data, pred_data)[0]
-total_srocc = spearmanr(true_data, pred_data)[0]
+all_pcc = pearsonr(true_data, pred_data)[0]
+all_srocc = spearmanr(true_data, pred_data)[0]
+
+savemat('results/hist_scale_qp_analysis.mat', {'hist_pcc': pcc, 'hist_srocc': srocc, 'hist_all_pcc': all_pcc, 'hist_all_srocc': all_srocc})
