@@ -58,7 +58,7 @@ def match_histograms(source, template):
 
 parser = argparse.ArgumentParser(description='Code to test histogram matching')
 parser.add_argument('--data_path', help='Directory containing pristine videos', required=True)
-parser.add_argument('--interval', help='Interval at which to sample the reference histogram', default=5)
+parser.add_argument('--interval', help='Interval at which to sample the reference histogram', type=int, default=5)
 args = parser.parse_args()
 
 # Scales at which compression will be done
