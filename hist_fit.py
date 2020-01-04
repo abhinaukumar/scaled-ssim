@@ -103,12 +103,12 @@ for f in range(n_files):
         for q in range(n_qps):
 
             # Compress scaled video
-            system("ffmpeg -hide_banner -loglevel panic -i scaled_video.mp4" +
+            system("ffmpeg -hide_banner -loglevel panic -i temp/hist_scaled_video.mp4" +
                    " -vcodec libx264 -crf " + str(qps[q]) +
                    " -y temp/hist_comp_video.mp4")
 
             # Resize compressed video back to original scale
-            system("ffmpeg -hide_banner -loglevel panic -i comp_video.mp4" +
+            system("ffmpeg -hide_banner -loglevel panic -i temp/hist_comp_video.mp4" +
                    " -filter:v scale=" + str(width) + "x" + str(height) +
                    " -sws_flags lanczos" +
                    " -y temp/hist_upscaled_comp_video.mp4")
