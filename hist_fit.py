@@ -10,6 +10,19 @@ import argparse
 from scipy.io import savemat
 from scipy.stats import spearmanr, pearsonr
 
+def find_nearest(array,value):
+    idx = np.searchsorted(array, value, side="left")
+    inds = (idx > 0)
+#    print(idx[inds])
+#    print(value[inds])
+#    print(len(array))
+    idx[inds] = idx[inds] - (idx[inds] == len(array))
+    idx[inds] = idx[inds] - (np.abs(value[inds] - array[idx[inds]-1]) < np.abs(value[inds] - array[idx[inds]]))
+#    if idx > 0 and (idx == len(array) or math.fabs(value - array[idx-1]) < math.fabs(value - array[idx])):
+#        return array[idx-1]
+#    else:
+#        return array[idx]
+    return idx
 
 def match_histograms(source, template):
     """
@@ -34,13 +47,15 @@ def match_histograms(source, template):
     template = template.ravel()
 
     # get histogram and bin ids for every value in source
-    s_counts, s_bins = np.histogram(source, bins=200, density=True)
-    t_counts, t_bins = np.histogram(template, bins=200, density=True)
+    s_counts, s_bins = np.histogram(source, bins=1000, density=True)
+    t_counts, t_bins = np.histogram(template, bins=1000, density=True)
 
     s_values = (s_bins[:-1] + s_bins[1:])/2
     t_values = (t_bins[:-1] + t_bins[1:])/2
 
-    bin_idx = [np.argmin(np.abs(val - s_values)) for val in source]
+    #bin_idx = [np.argmin(np.abs(val - s_values)) for val in source]
+    bin_idx = find_nearest(s_values, source)
+
     # take the cumsum of the counts and normalize by the number of pixels to
     # get the empirical cumulative distribution functions for the source and
     # template images (maps pixel value --> quantile)
@@ -86,11 +101,12 @@ true_ssim_data = np.empty((n_files, n_scales, n_qps), dtype=object)
 # Data storing predicted SSIM at rendering scale
 pred_ssim_data = np.empty((n_files, n_scales, n_qps), dtype=object)
 
+start = time.time()
 for f in range(n_files):
 
     for s in range(n_scales):
 
-        start = time.time()
+        #start = time.time()
         # Downsample video to compression scale
         system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
                " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
@@ -103,7 +119,7 @@ for f in range(n_files):
 
         for q in range(n_qps):
 
-            start = time.time()
+            #start = time.time()
             # Compress scaled video
             system("ffmpeg -hide_banner -loglevel panic -i temp/hist_scaled_video.mp4" +
                    " -vcodec libx264 -crf " + str(qps[q]) +
@@ -114,14 +130,14 @@ for f in range(n_files):
                    " -filter:v scale=" + str(width) + "x" + str(height) +
                    " -sws_flags lanczos" +
                    " -y temp/hist_upscaled_comp_video.mp4")
-            print("FFMPEG stuff for ref in ", time.time() - start, " s")
+            #print("FFMPEG stuff in ", time.time() - start, " s")
 
-            start = time.time()
+            #start = time.time()
             v1 = cv2.VideoCapture(videos_dir + file_list[f])
             v2 = cv2.VideoCapture("temp/hist_scaled_video.mp4")
             v3 = cv2.VideoCapture("temp/hist_comp_video.mp4")
             v4 = cv2.VideoCapture("temp/hist_upscaled_comp_video.mp4")
-            print("Opening streams in ", time.time() - start, " s")
+            #print("Opening streams in ", time.time() - start, " s")
 
             k = 0
 
@@ -132,38 +148,41 @@ for f in range(n_files):
             # Calculate and predict SSIM before and after compression at both scales
             while(v1.isOpened() and v2.isOpened() and v3.isOpened() and v4.isOpened()):
 
-                start = time.time()
+                #start = time.time()
                 ret1, RGB_original = v1.read()
                 ret2, RGB_scaled = v2.read()
                 ret3, RGB_comp = v3.read()
                 ret4, RGB_upcomp = v4.read()
-                print("Read frame in ", time.time() - start, " s")
+                #print("Read frame in ", time.time() - start, " s")
                 if ret1 and ret2 and ret3 and ret4:
 
-                    start = time.time()
+                    #start = time.time()
                     Y_original = cv2.cvtColor(RGB_original, cv2.COLOR_BGR2GRAY)
                     Y_scaled = cv2.cvtColor(RGB_scaled, cv2.COLOR_BGR2GRAY)
                     Y_comp = cv2.cvtColor(RGB_comp, cv2.COLOR_BGR2GRAY)
                     Y_upcomp = cv2.cvtColor(RGB_upcomp, cv2.COLOR_BGR2GRAY)
 
-                    print("Grayscale conversion in ", time.time() - start, " s")
+                    #print("Grayscale conversion in ", time.time() - start, " s")
 
-                    start = time.time()
-                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
+                    #start = time.time()
+#                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
+                    [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
 
                     if k % args.interval == 0:
-                        [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+ #                       [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+                        [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
                         ssim_map_ref = ssim_map_true
+                        true_ssims.append(np.mean(ssim_map_true))
                     else:
-                        true_ssims.append(ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=False))
+                        true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
 
-                    print("SSIM calculation in ", time.time() - start, " s")
+                    #print("SSIM calculation in ", time.time() - start, " s")
 
-                    start = time.time()
+                    #start = time.time()
                     ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
-                    print("Histogram matching in ", time.time() - start.time())
+                    #print("Histogram matching in ", time.time() - start)
 
-                    true_ssims.append(np.mean(ssim_map_true))
+#                    true_ssims.append(np.mean(ssim_map_true))
                     comp_ssims.append(np.mean(ssim_map_comp))
                     pred_ssims.append(np.mean(ssim_map_trans))
 
@@ -178,7 +197,7 @@ for f in range(n_files):
             print("Processed Video " + str(f) +
                   " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
                   " and QP " + str(qps[q]))
-            # print("Time elapsed: " + str(time.time() - start) + " s")
+            print("Time elapsed: " + str(time.time() - start) + " s")
 
 pcc = np.zeros((n_scales, n_qps))
 srocc = np.zeros((n_scales, n_qps))
