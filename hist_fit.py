@@ -139,8 +139,8 @@ for f in range(n_files):
                     Y_comp = cv2.cvtColor(RGB_comp, cv2.COLOR_BGR2GRAY)
                     Y_upcomp = cv2.cvtColor(RGB_upcomp, cv2.COLOR_BGR2GRAY)
 
-                    [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=True, full=True)
-                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=True, full=True)
+                    [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
 
                     if k % args.interval == 0:
                         ssim_map_ref = ssim_map_true
