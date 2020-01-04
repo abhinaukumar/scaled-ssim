@@ -8,7 +8,7 @@ import time
 import argparse
 
 from scipy.io import savemat
-from scipy.stats import spearmanr, pearsonr
+# from scipy.stats import spearmanr, pearsonr
 
 
 def find_nearest(array, value):
@@ -70,8 +70,13 @@ def match_histograms(source, template):
 parser = argparse.ArgumentParser(description='Code to test histogram matching')
 parser.add_argument('--data_path', help='Directory containing pristine videos', required=True)
 parser.add_argument('--interval', help='Interval at which to sample the reference histogram', type=int, default=5)
+parser.add_argument('--scale_index', help='Index of compression scale (0-5)', type=int, required=True)
 args = parser.parse_args()
 
+assert args.interval > 0, "Interval must be a positive integer"
+assert args.scale_index >= 0 and args.scale_index < 6, "Scale index must be in the range 0-5"
+
+s = args.scale_index
 # Scales at which compression will be done
 scales = np.array([[1280, 720], [426, 240], [640, 360], [720, 480], [960, 540], [1280, 720]])
 n_scales = scales.shape[0]
@@ -91,123 +96,123 @@ width = 1920
 height = 1080
 
 # Data storing SSIM at compression scale
-comp_ssim_data = np.empty((n_files, n_scales, n_qps), dtype=object)
+comp_ssim_data = np.empty((n_files, n_qps), dtype=object)
 # Data storing SSIM at rendering scale
-true_ssim_data = np.empty((n_files, n_scales, n_qps), dtype=object)
+true_ssim_data = np.empty((n_files, n_qps), dtype=object)
 # Data storing predicted SSIM at rendering scale
-pred_ssim_data = np.empty((n_files, n_scales, n_qps), dtype=object)
+pred_ssim_data = np.empty((n_files, n_qps), dtype=object)
 
 start = time.time()
 for f in range(n_files):
 
-    for s in range(n_scales):
+    # for s in range(n_scales):
 
-        # Downsample video to compression scale
-        system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
-               " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
+    # Downsample video to compression scale
+    system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
+           " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
+           " -sws_flags lanczos" +
+           " -y temp/hist_scaled_video.mp4")
+
+    print("Processed Reference Video " + str(f) +
+          " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]))
+    print("Time elapsed: " + str(time.time() - start) + " s")
+
+    for q in range(n_qps):
+
+        # Compress scaled video
+        system("ffmpeg -hide_banner -loglevel panic -i temp/hist_scaled_video.mp4" +
+               " -vcodec libx264 -crf " + str(qps[q]) +
+               " -y temp/hist_comp_video.mp4")
+
+        # Resize compressed video back to original scale
+        system("ffmpeg -hide_banner -loglevel panic -i temp/hist_comp_video.mp4" +
+               " -filter:v scale=" + str(width) + "x" + str(height) +
                " -sws_flags lanczos" +
-               " -y temp/hist_scaled_video.mp4")
+               " -y temp/hist_upscaled_comp_video.mp4")
 
-        print("Processed Reference Video " + str(f) +
-              " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]))
+        v1 = cv2.VideoCapture(videos_dir + file_list[f])
+        v2 = cv2.VideoCapture("temp/hist_scaled_video.mp4")
+        v3 = cv2.VideoCapture("temp/hist_comp_video.mp4")
+        v4 = cv2.VideoCapture("temp/hist_upscaled_comp_video.mp4")
+
+        k = 0
+
+        true_ssims = []
+        comp_ssims = []
+        pred_ssims = []
+
+        # Calculate and predict SSIM before and after compression at both scales
+        while(v1.isOpened() and v2.isOpened() and v3.isOpened() and v4.isOpened()):
+
+            ret1, RGB_original = v1.read()
+            ret2, RGB_scaled = v2.read()
+            ret3, RGB_comp = v3.read()
+            ret4, RGB_upcomp = v4.read()
+
+            if ret1 and ret2 and ret3 and ret4:
+
+                Y_original = cv2.cvtColor(RGB_original, cv2.COLOR_BGR2GRAY)
+                Y_scaled = cv2.cvtColor(RGB_scaled, cv2.COLOR_BGR2GRAY)
+                Y_comp = cv2.cvtColor(RGB_comp, cv2.COLOR_BGR2GRAY)
+                Y_upcomp = cv2.cvtColor(RGB_upcomp, cv2.COLOR_BGR2GRAY)
+
+                [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+
+                if k % args.interval == 0:
+                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
+                    ssim_map_ref = ssim_map_true
+                    true_ssims.append(np.mean(ssim_map_true))
+                else:
+                    true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
+
+                ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
+
+                comp_ssims.append(np.mean(ssim_map_comp))
+                pred_ssims.append(np.mean(ssim_map_trans))
+
+                k += 1
+            else:
+                break
+
+        comp_ssim_data[f, q] = comp_ssims
+        true_ssim_data[f, q] = true_ssims
+        pred_ssim_data[f, q] = pred_ssims
+
+        print("Processed Video " + str(f) +
+              " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
+              " and QP " + str(qps[q]))
         print("Time elapsed: " + str(time.time() - start) + " s")
 
-        for q in range(n_qps):
+savemat('results/hist_' + str(s) + '_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
 
-            # Compress scaled video
-            system("ffmpeg -hide_banner -loglevel panic -i temp/hist_scaled_video.mp4" +
-                   " -vcodec libx264 -crf " + str(qps[q]) +
-                   " -y temp/hist_comp_video.mp4")
+# pcc = np.zeros((n_scales, n_qps))
+# srocc = np.zeros((n_scales, n_qps))
 
-            # Resize compressed video back to original scale
-            system("ffmpeg -hide_banner -loglevel panic -i temp/hist_comp_video.mp4" +
-                   " -filter:v scale=" + str(width) + "x" + str(height) +
-                   " -sws_flags lanczos" +
-                   " -y temp/hist_upscaled_comp_video.mp4")
+# for s in range(n_scales):
+#     for q in range(n_qps):
+#         true_data = []
+#         pred_data = []
 
-            v1 = cv2.VideoCapture(videos_dir + file_list[f])
-            v2 = cv2.VideoCapture("temp/hist_scaled_video.mp4")
-            v3 = cv2.VideoCapture("temp/hist_comp_video.mp4")
-            v4 = cv2.VideoCapture("temp/hist_upscaled_comp_video.mp4")
+#         for f in range(n_files):
+#             true_data.extend(true_ssim_data[f, s, q])
+#             pred_data.extend(pred_ssim_data[f, s, q])
 
-            k = 0
+#         pcc[s, q] = pearsonr(true_data, pred_data)[0]
+#         srocc[s, q] = spearmanr(true_data, pred_data)[0]
 
-            true_ssims = []
-            comp_ssims = []
-            pred_ssims = []
+# true_data = []
+# pred_data = []
 
-            # Calculate and predict SSIM before and after compression at both scales
-            while(v1.isOpened() and v2.isOpened() and v3.isOpened() and v4.isOpened()):
+# for s in range(n_scales):
+#     for q in range(n_qps):
+#         for f in range(n_files):
+#             true_data.append(true_ssim_data[f, s, q])
+#             pred_data.append(pred_ssim_data[f, s, q])
 
-                ret1, RGB_original = v1.read()
-                ret2, RGB_scaled = v2.read()
-                ret3, RGB_comp = v3.read()
-                ret4, RGB_upcomp = v4.read()
+# true_data = np.concatenate(true_data, axis=0)
+# pred_data = np.concatenate(pred_data, axis=0)
 
-                if ret1 and ret2 and ret3 and ret4:
+# all_pcc = pearsonr(true_data, pred_data)[0]
+# all_srocc = spearmanr(true_data, pred_data)[0]
 
-                    Y_original = cv2.cvtColor(RGB_original, cv2.COLOR_BGR2GRAY)
-                    Y_scaled = cv2.cvtColor(RGB_scaled, cv2.COLOR_BGR2GRAY)
-                    Y_comp = cv2.cvtColor(RGB_comp, cv2.COLOR_BGR2GRAY)
-                    Y_upcomp = cv2.cvtColor(RGB_upcomp, cv2.COLOR_BGR2GRAY)
-
-                    [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
-
-                    if k % args.interval == 0:
-                        [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
-                        ssim_map_ref = ssim_map_true
-                        true_ssims.append(np.mean(ssim_map_true))
-                    else:
-                        true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
-
-                    ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
-
-                    comp_ssims.append(np.mean(ssim_map_comp))
-                    pred_ssims.append(np.mean(ssim_map_trans))
-
-                    k += 1
-                else:
-                    break
-
-            comp_ssim_data[f, s, q] = comp_ssims
-            true_ssim_data[f, s, q] = true_ssims
-            pred_ssim_data[f, s, q] = pred_ssims
-
-            print("Processed Video " + str(f) +
-                  " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
-                  " and QP " + str(qps[q]))
-            print("Time elapsed: " + str(time.time() - start) + " s")
-
-savemat('results/hist_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
-
-pcc = np.zeros((n_scales, n_qps))
-srocc = np.zeros((n_scales, n_qps))
-
-for s in range(n_scales):
-    for q in range(n_qps):
-        true_data = []
-        pred_data = []
-
-        for f in range(n_files):
-            true_data.extend(true_ssim_data[f, s, q])
-            pred_data.extend(pred_ssim_data[f, s, q])
-
-        pcc[s, q] = pearsonr(true_data, pred_data)[0]
-        srocc[s, q] = spearmanr(true_data, pred_data)[0]
-
-true_data = []
-pred_data = []
-
-for s in range(n_scales):
-    for q in range(n_qps):
-        for f in range(n_files):
-            true_data.append(true_ssim_data[f, s, q])
-            pred_data.append(pred_ssim_data[f, s, q])
-
-true_data = np.concatenate(true_data, axis=0)
-pred_data = np.concatenate(pred_data, axis=0)
-
-all_pcc = pearsonr(true_data, pred_data)[0]
-all_srocc = spearmanr(true_data, pred_data)[0]
-
-savemat('results/hist_scale_qp_analysis.mat', {'hist_pcc': pcc, 'hist_srocc': srocc, 'hist_all_pcc': all_pcc, 'hist_all_srocc': all_srocc})
+# savemat('results/hist_scale_qp_analysis.mat', {'hist_pcc': pcc, 'hist_srocc': srocc, 'hist_all_pcc': all_pcc, 'hist_all_srocc': all_srocc})
