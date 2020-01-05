@@ -146,31 +146,6 @@ elif args.mode == 'analyze_scale_qp':
 
     for s in range(n_scales):
         for q in range(n_qps):
-
-            # print("Resolution:", scales[s], "QPS:", qps[q])
-
-            # train_scale_data = scale_data[:n_train, s, q]
-            # test_scale_data = scale_data[n_train:, s, q]
-
-            # train_comp_data = comp_data[:n_train, s, q]
-            # test_comp_data = comp_data[n_train:, s, q]
-
-            # train_true_data = true_data[:n_train, s, q]
-            # test_true_data = true_data[n_train:, s, q]
-
-            # if args.n_feats == 2:
-            #     train_feats = np.vstack([train_scale_data, train_comp_data]).T
-            #     test_feats = np.vstack([test_scale_data, test_comp_data]).T
-            # else:
-            #     train_feats = np.vstack([train_scale_data, train_comp_data, 1080/(scales[s]*np.ones((n_train,))), 51/(qps[q]*np.ones((n_train,)))]).T
-            #     test_feats = np.vstack([test_scale_data, test_comp_data, 1080/(scales[s]*np.ones((n_frames - n_train,))), 51/(qps[q]*np.ones((n_frames - n_train,)))]).T
-
-            # train_targets = train_true_data
-            # test_targets = test_true_data
-
-            # train_preds = clf.predict(train_feats)
-            # test_preds = clf.predict(test_feats)
-
             train_pcc[s, q] = pearsonr(train_preds[:, s, q], train_targets[:, s, q])[0]
             train_srocc[s, q] = spearmanr(train_preds[:, s, q], train_targets[:, s, q])[0]
             test_pcc[s, q] = pearsonr(test_preds[:, s, q], test_targets[:, s, q])[0]
