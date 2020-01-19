@@ -107,6 +107,7 @@ for f in range(n_files):
 
     # for s in range(n_scales):
 
+    print(videos_dir + file_list[f])
     # Downsample video to compression scale
     system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
            " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
