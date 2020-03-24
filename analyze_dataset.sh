@@ -5,6 +5,9 @@ directory=$1
 pids=""
 RESULT=0
 
+mkdir -p ssims
+mkdir -p temp
+
 resolutions="256:144 426:240 640:360 720:480 960:540 1280:720"
 
 for resolution in $resolutions
