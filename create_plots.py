@@ -72,28 +72,52 @@ for i, model in enumerate(models_dict.keys()):
     plt.subplot(2, n_models, i + n_models + 1)
     plt.imshow(f[model + '_test_srocc'], vmin=0.8, vmax=1, aspect='equal')
     plt.title(models_dict[model] + ' Test SROCC')
-
     plt.xticks(np.arange(n_qps), qps)
     plt.yticks(np.arange(n_scales), scales)
     plt.colorbar(orientation='horizontal')
     plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1, wspace=0.3)
 
-f = loadmat(os.path.join('results', 'phase2', 'prod_scale_qp_analysis.mat'))
+models_dict = {'prod': 'Product (Baseline)',
+               'hist': 'Histogram Matching'}
+
+n_models = len(models_dict.keys())
 
 plt.figure()
+for i, model in enumerate(models_dict.keys()):
+    f = loadmat(os.path.join('results', 'phase3', model + '_scale_qp_analysis.mat'))
 
-plt.subplot(1, 2, 1)
-plt.imshow(f['prod_pcc'], vmin=0.8, vmax=1, aspect='equal')
-plt.title('Product - PCC')
-plt.xticks(np.arange(n_qps), qps)
-plt.yticks(np.arange(n_scales), scales)
-plt.colorbar(orientation='horizontal')
-plt.subplots_adjust(left=0.05, right=0.95, wspace=0.3)
+    plt.subplot(2, 4, i + 1)
+    plt.imshow(f[model + '_pcc'], vmin=0.8, vmax=1, aspect='equal')
+    plt.title(models_dict[model] + ' - PCC')
+    plt.xticks(np.arange(n_qps), qps)
+    plt.yticks(np.arange(n_scales), scales)
+    plt.colorbar(orientation='horizontal')
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1, wspace=0.3)
 
-plt.subplot(1, 2, 2)
-plt.imshow(f['prod_srocc'], vmin=0.8, vmax=1, aspect='equal')
-plt.title('Product - SROCC')
-plt.xticks(np.arange(n_qps), qps)
-plt.yticks(np.arange(n_scales), scales)
-plt.colorbar(orientation='horizontal')
-plt.subplots_adjust(left=0.05, right=0.95, wspace=0.3)
+    plt.subplot(2, 4, 4 + i + 1)
+    plt.imshow(f[model + '_srocc'], vmin=0.8, vmax=1, aspect='equal')
+    plt.title(models_dict[model] + ' - SROCC')
+    plt.xticks(np.arange(n_qps), qps)
+    plt.yticks(np.arange(n_scales), scales)
+    plt.colorbar(orientation='horizontal')
+    plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1, wspace=0.3)
+
+# f = loadmat(os.path.join('results', 'phase2', 'prod_scale_qp_analysis.mat'))
+
+# plt.figure()
+
+# plt.subplot(1, 2, 1)
+# plt.imshow(f['prod_pcc'], vmin=0.8, vmax=1, aspect='equal')
+# plt.title('Product - PCC')
+# plt.xticks(np.arange(n_qps), qps)
+# plt.yticks(np.arange(n_scales), scales)
+# plt.colorbar(orientation='horizontal')
+# plt.subplots_adjust(left=0.05, right=0.95, wspace=0.3)
+
+# plt.subplot(1, 2, 2)
+# plt.imshow(f['prod_srocc'], vmin=0.8, vmax=1, aspect='equal')
+# plt.title('Product - SROCC')
+# plt.xticks(np.arange(n_qps), qps)
+# plt.yticks(np.arange(n_scales), scales)
+# plt.colorbar(orientation='horizontal')
+# plt.subplots_adjust(left=0.05, right=0.95, wspace=0.3)
