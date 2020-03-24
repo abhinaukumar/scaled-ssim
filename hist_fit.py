@@ -8,7 +8,7 @@ import time
 import argparse
 
 from scipy.io import savemat
-from scipy.stats import spearmanr, pearsonr
+# from scipy.stats import spearmanr, pearsonr
 
 
 def find_nearest(array, value):
@@ -186,34 +186,34 @@ for f in range(n_files):
 
 savemat('results/hist_' + str(s) + '_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
 
-pcc = np.zeros((n_scales, n_qps))
-srocc = np.zeros((n_scales, n_qps))
+# pcc = np.zeros((n_scales, n_qps))
+# srocc = np.zeros((n_scales, n_qps))
 
-for s in range(n_scales):
-    for q in range(n_qps):
-        true_data = []
-        pred_data = []
+# for s in range(n_scales):
+#     for q in range(n_qps):
+#         true_data = []
+#         pred_data = []
 
-        for f in range(n_files):
-            true_data.extend(true_ssim_data[f, s, q])
-            pred_data.extend(pred_ssim_data[f, s, q])
+#         for f in range(n_files):
+#             true_data.extend(true_ssim_data[f, s, q])
+#             pred_data.extend(pred_ssim_data[f, s, q])
 
-        pcc[s, q] = pearsonr(true_data, pred_data)[0]
-        srocc[s, q] = spearmanr(true_data, pred_data)[0]
+#         pcc[s, q] = pearsonr(true_data, pred_data)[0]
+#         srocc[s, q] = spearmanr(true_data, pred_data)[0]
 
-true_data = []
-pred_data = []
+# true_data = []
+# pred_data = []
 
-for s in range(n_scales):
-    for q in range(n_qps):
-        for f in range(n_files):
-            true_data.append(true_ssim_data[f, s, q])
-            pred_data.append(pred_ssim_data[f, s, q])
+# for s in range(n_scales):
+#     for q in range(n_qps):
+#         for f in range(n_files):
+#             true_data.append(true_ssim_data[f, s, q])
+#             pred_data.append(pred_ssim_data[f, s, q])
 
-true_data = np.concatenate(true_data, axis=0)
-pred_data = np.concatenate(pred_data, axis=0)
+# true_data = np.concatenate(true_data, axis=0)
+# pred_data = np.concatenate(pred_data, axis=0)
 
-all_pcc = pearsonr(true_data, pred_data)[0]
-all_srocc = spearmanr(true_data, pred_data)[0]
+# all_pcc = pearsonr(true_data, pred_data)[0]
+# all_srocc = spearmanr(true_data, pred_data)[0]
 
-savemat('results/hist_scale_qp_analysis.mat', {'hist_pcc': pcc, 'hist_srocc': srocc, 'hist_all_pcc': all_pcc, 'hist_all_srocc': all_srocc})
+# savemat('results/hist_scale_qp_analysis.mat', {'hist_pcc': pcc, 'hist_srocc': srocc, 'hist_all_pcc': all_pcc, 'hist_all_srocc': all_srocc})
