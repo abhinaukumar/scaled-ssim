@@ -82,8 +82,9 @@ scales = np.array([[1280, 720], [426, 240], [640, 360], [720, 480], [960, 540], 
 n_scales = scales.shape[0]
 
 # Intervals at which to sample the true quality map
-intervals = [2, 5, 7, 10, 12, 15]
-ssim_map_refs = [None]*5
+intervals = [2, 7, 10, 12, 15]
+n_intervals = len(intervals)
+ssim_map_refs = [None]*n_intervals
 # QPs used while compressing at each scale
 qps = np.arange(1, 52, 5)
 n_qps = len(qps)
@@ -134,7 +135,7 @@ for f in range(n_files):
         #        " -sws_flags lanczos" +
         #        " -y temp/hist_" + str(s) + "_upscaled_comp_video.mp4")
 
-        system("ffmpeg -hide_banner -loglevel panic -i " + os.path.join(videos_dir, str(scales[s, 1]) + '_res', str(qps[q] + '_qp', file_list[f])) +
+        system("ffmpeg -hide_banner -loglevel panic -i " + os.path.join(videos_dir, str(scales[s, 1]) + '_res', str(qps[q]) + '_qp', file_list[f]) +
                " -filter:v scale=" + str(width) + "x" + str(height) +
                " -sws_flags lanczos" +
                " -y temp/hist_" + str(s) + "_upscaled_comp_video.mp4")
@@ -144,7 +145,7 @@ for f in range(n_files):
         # v3 = cv2.VideoCapture("temp/hist_" + str(s) + "_comp_video.mp4")
         v1 = cv2.VideoCapture(os.path.join(videos_dir, '1080_res', '0_qp', file_list[f]))
         v2 = cv2.VideoCapture(os.path.join(videos_dir, str(scales[s, 1]) + '_res', '0_qp', file_list[f]))
-        v3 = cv2.VideoCapture(os.path.join(videos_dir, str(scales[s, 1]) + '_res', str(qps[q] + '_qp'), file_list[f]))
+        v3 = cv2.VideoCapture(os.path.join(videos_dir, str(scales[s, 1]) + '_res', str(qps[q]) + '_qp', file_list[f]))
         v4 = cv2.VideoCapture("temp/hist_" + str(s) + "_upscaled_comp_video.mp4")
 
         k = 0
@@ -198,7 +199,7 @@ for f in range(n_files):
               " and QP " + str(qps[q]))
         print("Time elapsed: " + str(time.time() - start) + " s")
 
-savemat('results/hist_scale_' + str(s) + '_interval_' + str(args.interval) + '_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
+savemat('results/hist_multi_interval_scale_' + str(s) + '_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
 
 # pcc = np.zeros((n_scales, n_qps))
 # srocc = np.zeros((n_scales, n_qps))
