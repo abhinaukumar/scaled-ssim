@@ -69,11 +69,11 @@ def match_histograms(source, template):
 
 parser = argparse.ArgumentParser(description='Code to test histogram matching')
 parser.add_argument('--data_path', help='Directory containing pristine videos', required=True)
-parser.add_argument('--interval', help='Interval at which to sample the reference histogram', type=int, default=5)
+# parser.add_argument('--interval', help='Interval at which to sample the reference histogram', type=int, default=5)
 parser.add_argument('--scale_index', help='Index of compression scale (0-5)', type=int, required=True)
 args = parser.parse_args()
 
-assert args.interval > 0, "Interval must be a positive integer"
+# assert args.interval > 0, "Interval must be a positive integer"
 assert args.scale_index >= 0 and args.scale_index < 6, "Scale index must be in the range 0-5"
 
 s = args.scale_index
@@ -81,6 +81,9 @@ s = args.scale_index
 scales = np.array([[1280, 720], [426, 240], [640, 360], [720, 480], [960, 540], [1280, 720]])
 n_scales = scales.shape[0]
 
+# Intervals at which to sample the true quality map
+intervals = [2, 5, 7, 10, 12, 15]
+ssim_map_refs = [None]*5
 # QPs used while compressing at each scale
 qps = np.arange(1, 52, 5)
 n_qps = len(qps)
@@ -165,19 +168,22 @@ for f in range(n_files):
                 Y_comp = cv2.cvtColor(RGB_comp, cv2.COLOR_BGR2GRAY)
                 Y_upcomp = cv2.cvtColor(RGB_upcomp, cv2.COLOR_BGR2GRAY)
 
-                [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+                [comp_ssim, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+                [true_ssim, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
 
-                if k % args.interval == 0:
-                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
-                    ssim_map_ref = ssim_map_true
-                    true_ssims.append(np.mean(ssim_map_true))
-                else:
-                    true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
+                for i_interval, interval in enumerate(intervals):
+                    if k % interval == 0:
+                        ssim_map_refs[i_interval] = ssim_map_true.copy()
+                # else:
+                #     true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
 
-                ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
+                ssim_map_trans_list = []
+                for ssim_map_ref in ssim_map_refs:
+                    ssim_map_trans_list.append(match_histograms(ssim_map_comp, ssim_map_ref))
 
-                comp_ssims.append(np.mean(ssim_map_comp))
-                pred_ssims.append(np.mean(ssim_map_trans))
+                comp_ssims.append(comp_ssim)
+                true_ssims.append(true_ssim)
+                pred_ssims.append([np.mean(ssim_map_trans) for ssim_map_trans in ssim_map_trans_list])
 
                 k += 1
             else:
