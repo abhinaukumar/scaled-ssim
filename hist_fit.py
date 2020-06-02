@@ -87,7 +87,7 @@ n_qps = len(qps)
 
 # Directory containing all videos
 videos_dir = args.data_path
-file_list = os.listdir(videos_dir)
+file_list = os.listdir(os.path.join(videos_dir, '1080_res', '0_qp'))
 file_list = [v for v in file_list if v[-3:] == 'mp4']
 n_files = len(file_list)
 
@@ -109,31 +109,39 @@ for f in range(n_files):
 
     print(videos_dir + file_list[f])
     # Downsample video to compression scale
-    system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
-           " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
-           " -sws_flags lanczos" +
-           " -y temp/hist_" + str(s) + "_scaled_video.mp4")
+    # system("ffmpeg -hide_banner -loglevel panic -i " + videos_dir + file_list[f] +
+    #        " -filter:v scale=" + str(scales[s, 0]) + "x" + str(scales[s, 1]) +
+    #        " -sws_flags lanczos" +
+    #        " -y temp/hist_" + str(s) + "_scaled_video.mp4")
 
-    print("Processed Reference Video " + str(f) +
-          " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]))
-    print("Time elapsed: " + str(time.time() - start) + " s")
+    # print("Processed Reference Video " + str(f) +
+    #       " at scale " + str(scales[s, 0]) + "x" + str(scales[s, 1]))
+    # print("Time elapsed: " + str(time.time() - start) + " s")
 
     for q in range(n_qps):
 
         # Compress scaled video
-        system("ffmpeg -hide_banner -loglevel panic -i temp/hist_" + str(s) + "_scaled_video.mp4" +
-               " -vcodec libx264 -crf " + str(qps[q]) +
-               " -y temp/hist_" + str(s) + "_comp_video.mp4")
+        # system("ffmpeg -hide_banner -loglevel panic -i temp/hist_" + str(s) + "_scaled_video.mp4" +
+        #        " -vcodec libx264 -crf " + str(qps[q]) +
+        #        " -y temp/hist_" + str(s) + "_comp_video.mp4")
 
-        # Resize compressed video back to original scale
-        system("ffmpeg -hide_banner -loglevel panic -i temp/hist_" + str(s) + "_comp_video.mp4" +
+        # # Resize compressed video back to original scale
+        # system("ffmpeg -hide_banner -loglevel panic -i temp/hist_" + str(s) + "_comp_video.mp4" +
+        #        " -filter:v scale=" + str(width) + "x" + str(height) +
+        #        " -sws_flags lanczos" +
+        #        " -y temp/hist_" + str(s) + "_upscaled_comp_video.mp4")
+
+        system("ffmpeg -hide_banner -loglevel panic -i " + os.path.join(videos_dir, str(scales[s, 1]) + '_res', str(qps[q] + '_qp', file_list[f])) +
                " -filter:v scale=" + str(width) + "x" + str(height) +
                " -sws_flags lanczos" +
                " -y temp/hist_" + str(s) + "_upscaled_comp_video.mp4")
 
-        v1 = cv2.VideoCapture(videos_dir + file_list[f])
-        v2 = cv2.VideoCapture("temp/hist_" + str(s) + "_scaled_video.mp4")
-        v3 = cv2.VideoCapture("temp/hist_" + str(s) + "_comp_video.mp4")
+        # v1 = cv2.VideoCapture(videos_dir + file_list[f])
+        # v2 = cv2.VideoCapture("temp/hist_" + str(s) + "_scaled_video.mp4")
+        # v3 = cv2.VideoCapture("temp/hist_" + str(s) + "_comp_video.mp4")
+        v1 = cv2.VideoCapture(os.path.join(videos_dir, '1080_res', '0_qp', file_list[f]))
+        v2 = cv2.VideoCapture(os.path.join(videos_dir, str(scales[s, 1]) + '_res', '0_qp', file_list[f]))
+        v3 = cv2.VideoCapture(os.path.join(videos_dir, str(scales[s, 1]) + '_res', str(qps[q] + '_qp'), file_list[f]))
         v4 = cv2.VideoCapture("temp/hist_" + str(s) + "_upscaled_comp_video.mp4")
 
         k = 0
@@ -184,7 +192,7 @@ for f in range(n_files):
               " and QP " + str(qps[q]))
         print("Time elapsed: " + str(time.time() - start) + " s")
 
-savemat('results/hist_' + str(s) + '_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
+savemat('results/hist_scale_' + str(s) + '_interval_' + str(args.interval) + '_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
 
 # pcc = np.zeros((n_scales, n_qps))
 # srocc = np.zeros((n_scales, n_qps))
