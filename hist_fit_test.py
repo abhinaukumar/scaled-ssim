@@ -72,14 +72,19 @@ def match_histograms(source, template):
 
 parser = argparse.ArgumentParser(description='Code to test histogram matching')
 parser.add_argument('--data_path', help='Directory containing pristine videos', required=True)
-parser.add_argument('--interval', help='Interval at which to sample the reference histogram', type=int, default=5)
+# parser.add_argument('--interval', help='Interval at which to sample the reference histogram', type=int, default=5)
 args = parser.parse_args()
 
-assert args.interval > 0, "Interval must be a positive integer"
+# assert args.interval > 0, "Interval must be a positive integer"
 
 # Possible scales at which compression will be don
 scales = {288: [352, 288], 384: [512, 384], 480: [720, 480], 720: [1280, 720], 1080: [1920, 1080]}
 n_scales = len(scales)
+
+# Intervals at which to sample the true quality map
+intervals = [2, 5, 7, 10, 12, 15]
+n_intervals = len(intervals)
+ssim_map_refs = [None]*n_intervals
 
 # Directory containing all videos
 videos_dir = args.data_path
@@ -152,18 +157,27 @@ for f1 in range(n_ref_files):
                 Y_upcomp = cv2.cvtColor(RGB_upcomp, cv2.COLOR_BGR2GRAY)
 
                 [temp, ssim_map_comp] = ssim_index(Y_comp, Y_scaled, gaussian_weights=False, full=True)
+                [true_ssim, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
 
-                if k % args.interval == 0:
-                    [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
-                    ssim_map_ref = ssim_map_true
-                    true_ssims.append(np.mean(ssim_map_true))
-                else:
-                    true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
+                # if k % args.interval == 0:
+                #     [temp, ssim_map_true] = ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=True)
+                #     ssim_map_ref = ssim_map_true
+                #     true_ssims.append(np.mean(ssim_map_true))
+                # else:
+                #     true_ssims.append(ssim_index(Y_upcomp, Y_original, gaussian_weights=False, full=False))
 
-                ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
+                for i_interval, interval in enumerate(intervals):
+                    if k % interval == 0:
+                        ssim_map_refs[i_interval] = ssim_map_true.copy()
+
+                # ssim_map_trans = match_histograms(ssim_map_comp, ssim_map_ref)
+                ssim_map_trans_list = []
+                for ssim_map_ref in ssim_map_refs:
+                    ssim_map_trans_list.append(match_histograms(ssim_map_comp, ssim_map_ref))
 
                 comp_ssims.append(np.mean(ssim_map_comp))
-                pred_ssims.append(np.mean(ssim_map_trans))
+                true_ssims.append(np.mean(ssim_map_true))
+                pred_ssims.append([np.mean(ssim_map_trans) for ssim_map_trans in ssim_map_trans_list])
 
                 k += 1
             else:
@@ -178,7 +192,7 @@ for f1 in range(n_ref_files):
               " at scale " + str(scales[s][0]) + "x" + str(scales[s][1]))
         print("Time elapsed: " + str(time.time() - start) + " s")
 
-# savemat('results/hist_mcl_ssim_data.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
+savemat('results/hist_multi_interval_nflx_results.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data})
 
 pred_data = np.array([np.mean(v) for v in pred_ssim_data])
 true_data = np.array([np.mean(v) for v in true_ssim_data])
@@ -201,5 +215,5 @@ scores_pred = b0 * (0.5 - 1.0/(1 + np.exp(b1*((1 - pred_data) - b2))) + b3 * (1 
 pred_pcc = pearsonr(scores_pred, scores)[0]
 pred_srocc = spearmanr(scores_pred, scores)[0]
 
-savemat('results/hist_nflx_results.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data,
+savemat('results/hist_multi_interval_nflx_results.mat', {'comp_ssim_data': comp_ssim_data, 'true_ssim_data': true_ssim_data, 'pred_ssim_data': pred_ssim_data,
                                           'true_pcc': true_pcc, 'true_srocc': true_srocc, 'pred_pcc': pred_pcc, 'pred_srocc': pred_srocc})
